@@ -1,0 +1,152 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  CAREGIVER
+  DOCTOR
+  ADMIN
+}
+
+enum Frequency {
+  DAILY
+  TWICE_DAILY
+  THREE_TIMES_DAILY
+  WEEKLY
+  CUSTOM
+  AS_NEEDED
+}
+
+enum ReminderStatus {
+  PENDING
+  TAKEN
+  SKIPPED
+  SNOOZED
+  MISSED
+}
+
+enum EscalationLevel {
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+  LEVEL_4
+  LEVEL_5
+}
+
+model User {
+  id                 String          @id @default(uuid())
+  name               String
+  email              String          @unique
+  phone              String
+  passwordHash       String          @map("password_hash")
+  role               Role            @default(USER)
+  mustChangePassword Boolean         @default(false) @map("must_change_password")
+  avatarUrl          String?         @map("avatar_url")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  medications        Medication[]
+  caregiverOf        CaregiverLink[] @relation("CaregiverRelation")
+  patients           CaregiverLink[] @relation("PatientRelation")
+
+  @@map("users")
+}
+
+model Medication {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  name         String
+  dosage       String
+  instructions String?
+  frequency    Frequency @default(DAILY)
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime? @map("end_date")
+  isActive     Boolean   @default(true) @map("is_active")
+  pillCount    Int?      @map("pill_count")
+  pillsPerDose Int       @default(1) @map("pills_per_dose")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedules    Schedule[]
+
+  @@map("medications")
+}
+
+model Schedule {
+  id           String   @id @default(uuid())
+  medicationId String   @map("medication_id")
+  time         String   // Format: "HH:mm" e.g. "08:00", "14:30"
+  daysOfWeek   String?  @map("days_of_week") // "MON,WED,FRI" for custom frequency
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  medication   Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  reminders    Reminder[]
+
+  @@map("schedules")
+}
+
+model Reminder {
+  id            String         @id @default(uuid())
+  scheduleId    String         @map("schedule_id")
+  scheduledTime DateTime       @map("scheduled_time")
+  status        ReminderStatus @default(PENDING)
+  respondedAt   DateTime?      @map("responded_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  schedule      Schedule       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  logs          ReminderLog[]
+  escalation    Escalation?
+
+  @@map("reminders")
+}
+
+model ReminderLog {
+  id         String         @id @default(uuid())
+  reminderId String         @map("reminder_id")
+  action     ReminderStatus
+  note       String?
+  timestamp  DateTime       @default(now())
+
+  reminder   Reminder       @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_logs")
+}
+
+model Escalation {
+  id                 String          @id @default(uuid())
+  reminderId         String          @unique @map("reminder_id")
+  level              EscalationLevel @default(LEVEL_1)
+  smsSent            Boolean         @default(false) @map("sms_sent")
+  smsSentAt          DateTime?       @map("sms_sent_at")
+  caregiverNotified  Boolean         @default(false) @map("caregiver_notified")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  reminder           Reminder        @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@map("escalations")
+}
+
+model CaregiverLink {
+  id          String   @id @default(uuid())
+  caregiverId String   @map("caregiver_id")
+  patientId   String   @map("patient_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  caregiver   User     @relation("CaregiverRelation", fields: [caregiverId], references: [id], onDelete: Cascade)
+  patient     User     @relation("PatientRelation", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([caregiverId, patientId])
+  @@map("caregiver_links")
+}

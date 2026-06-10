@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: medreminder-api
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npx prisma generate
+    startCommand: node src/app.js
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_QmVyd7r8Jpxh@ep-blue-tree-ao02pjp0-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: JWT_SECRET
+        value: medreminder-local-development-secret-key-123456
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: ADMIN_EMAIL
+        value: admin@admin.com
+      - key: ADMIN_PASSWORD
+        value: Admin@123456
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ddny1nlkr
+      - key: CLOUDINARY_API_KEY
+        value: "988227273446646"
+      - key: CLOUDINARY_API_SECRET
+        value: txhu0m7rSNYNIqudVA9bqC8SU6Y

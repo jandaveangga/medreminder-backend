@@ -76,6 +76,14 @@ cron.schedule('*/5 * * * *', async () => {
   }
 });
 
+// 3. Self-ping every 14 minutes to keep Render free tier awake
+cron.schedule('*/14 * * * *', () => {
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
+  fetch(`${url}/api/health`)
+    .then(() => logger.info('Keep-alive ping sent successfully.'))
+    .catch(() => logger.warn('Keep-alive ping failed (server may be starting up).'));
+});
+
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
